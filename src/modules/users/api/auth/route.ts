@@ -3,16 +3,14 @@ import { z } from 'zod';
 import { UserService } from '../../services/UserService';
 import { SupabaseUserRepository } from '../../repositories/SupabaseUserRepository';
 
-/** Валидация регистрации с учётом exactOptionalPropertyTypes. */
 const RegisterSchema = z.object({
   email: z.string().email().max(255),
   username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
   password: z.string().min(8).max(128),
-  // ВАЖНО: делаем поле nullable, чтобы не было undefined при отсутствии
+  // nullable + optional для строгого исключения undefined
   displayName: z.string().max(100).nullable().optional(),
 });
 
-/** Валидация логина (email ИЛИ username) + пароль. */
 const LoginSchema = z.object({
   email: z.string().email().optional(),
   username: z.string().min(3).max(50).optional(),
@@ -24,10 +22,6 @@ function fail(message: string, status = 400) { return NextResponse.json({ succes
 
 const service = new UserService(new SupabaseUserRepository());
 
-/**
- * Универсальный POST обработчик для /api/auth/{register|login}
- * Разбирает pathname и вызывает соответствующий use-case.
- */
 export async function POST(req: NextRequest) {
   const url = new URL(req.url);
   try {
@@ -36,7 +30,7 @@ export async function POST(req: NextRequest) {
       const parsed = RegisterSchema.safeParse(body);
       if (!parsed.success) return fail(parsed.error.errors[0]?.message ?? 'Validation error', 400);
 
-      // Преобразуем nullable displayName в корректный RegisterInput без undefined
+      // Исключаем undefined, допускаем null → исключаем его перед передачей
       const registerInput = {
         email: parsed.data.email,
         username: parsed.data.username,
@@ -52,13 +46,20 @@ export async function POST(req: NextRequest) {
       const body = await req.json();
       const parsed = LoginSchema.safeParse(body);
       if (!parsed.success) return fail(parsed.error.errors[0]?.message ?? 'Validation error', 400);
-      const result = await service.login(parsed.data);
+
+      // Тот же паттерн: исключаем undefined ключи
+      const loginInput = {
+        password: parsed.data.password,
+        ...(parsed.data.email !== undefined && { email: parsed.data.email }),
+        ...(parsed.data.username !== undefined && { username: parsed.data.username }),
+      } as const;
+
+      const result = await service.login(loginInput);
       return ok(result, 200);
     }
 
     return fail('Not Found', 404);
   } catch (e: unknown) {
-    // Нормализация ошибок с unknown: приводим к ожидаемому формату
     const err = e as { message?: string; status?: number };
     return fail(err.message ?? 'Internal Server Error', err.status ?? 500);
   }
