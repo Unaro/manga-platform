@@ -1,4 +1,5 @@
-// User Service
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { User, RegisterInput, LoginInput, UserProfileUpdate } from '../types';
 import { UserRepository } from '../repositories/UserRepository';
 
@@ -6,56 +7,43 @@ export class UserService {
   constructor(private userRepo: UserRepository) {}
 
   async register(data: RegisterInput): Promise<{ user: User; token: string }> {
-    // Validate input
     const emailTaken = await this.userRepo.isEmailTaken(data.email);
     if (emailTaken) {
-      throw new Error('Email already taken');
+      throw Object.assign(new Error('Email already taken'), { status: 409 });
     }
 
     const usernameTaken = await this.userRepo.isUsernameTaken(data.username);
     if (usernameTaken) {
-      throw new Error('Username already taken');
+      throw Object.assign(new Error('Username already taken'), { status: 409 });
     }
 
-    // Hash password
-    const hashedPassword = await this.hashPassword(data.password);
+    const hashedPassword = await bcrypt.hash(data.password, 12);
 
-    // Create user
-    const user = await this.userRepo.create({
-      ...data,
-      hashedPassword,
-    });
+    const user = await this.userRepo.create({ ...data, hashedPassword });
 
-    // Generate JWT
-    const token = await this.generateJWT(user);
-
-    // Emit event
-    // TODO: Emit user.registered event
+    const token = this.generateJWT(user);
 
     return { user, token };
   }
 
   async login(data: LoginInput): Promise<{ user: User; token: string }> {
-    // Find user
     const user = data.email
       ? await this.userRepo.findByEmail(data.email)
       : data.username
-      ? await this.userRepo.findByUsername(data.username)
+      ? await this.userRepo.findByUsername(data.username!)
       : null;
 
     if (!user) {
-      throw new Error('User not found');
+      throw Object.assign(new Error('User not found'), { status: 404 });
     }
 
-    // Verify password
-    const validPassword = await this.verifyPassword(data.password, user.password);
-    if (!validPassword) {
-      throw new Error('Invalid password');
+    // @ts-expect-error password hash is stored only in repository layer mapping
+    const hashed: string | undefined = (user as any).password;
+    if (!hashed || !(await bcrypt.compare(data.password, hashed))) {
+      throw Object.assign(new Error('Invalid credentials'), { status: 401 });
     }
 
-    // Generate JWT
-    const token = await this.generateJWT(user);
-
+    const token = this.generateJWT(user);
     return { user, token };
   }
 
@@ -65,22 +53,17 @@ export class UserService {
 
   async updateProfile(id: string, data: UserProfileUpdate): Promise<User> {
     const user = await this.userRepo.update(id, data);
-
-    // Emit event
-    // TODO: Emit user.profile.updated event
-
     return user;
   }
 
-  private async hashPassword(password: string): Promise<string> {
-    throw new Error('Not implemented yet');
-  }
-
-  private async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-    throw new Error('Not implemented yet');
-  }
-
-  private async generateJWT(user: User): Promise<string> {
-    throw new Error('Not implemented yet');
+  private generateJWT(user: User): string {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+    };
+    const secret = process.env.JWT_SECRET as string;
+    return jwt.sign(payload, secret, { expiresIn: '1h' });
   }
 }
