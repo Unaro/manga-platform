@@ -38,3 +38,5 @@ logs/
 
 # Supabase
 supabase/.temp/
+
+next-env.d.ts
