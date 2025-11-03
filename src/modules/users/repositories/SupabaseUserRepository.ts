@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/database/supabaseClient';
-import type { Tables, TablesInsert, TablesUpdate } from '@/shared/database/generated.types';
+import type { Json, Tables, TablesInsert, TablesUpdate } from '@/shared/database/generated.types';
 import { User, UserPreferences, UserStats } from '../types';
 import { UserRepository } from './UserRepository';
 
@@ -34,6 +34,9 @@ export class SupabaseUserRepository implements UserRepository {
   }
 
   async create(data: { email: string; username: string; password: string; displayName?: string }): Promise<User> {
+    const prefsJson = this.defaultPreferences() as unknown as Json;
+    const statsJson = this.defaultStats() as unknown as Json;
+
     const insert: UserInsert = {
       email: data.email,
       username: data.username,
@@ -44,8 +47,8 @@ export class SupabaseUserRepository implements UserRepository {
       website: null,
       location: null,
       birth_date: null,
-      preferences: this.defaultPreferences() as unknown as UserInsert['preferences'],
-      stats: this.defaultStats() as unknown as UserInsert['stats'],
+      preferences: prefsJson,
+      stats: statsJson,
       is_active: true,
       email_verified: false,
       last_active_at: null,
@@ -64,7 +67,9 @@ export class SupabaseUserRepository implements UserRepository {
       website: data.website ?? null,
       location: data.location ?? null,
       birth_date: data.birthDate ? data.birthDate.toISOString() : null,
-      ...(data.preferences !== undefined && { preferences: data.preferences as unknown as UserUpdate['preferences'] }),
+      ...(data.preferences !== undefined && {
+        preferences: data.preferences as unknown as Json,
+      }),
     };
 
     const { data: row, error } = await supabase.from(this.table).update(update).eq('id', id).select('*').single<UserRow>();
