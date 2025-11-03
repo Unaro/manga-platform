@@ -2,6 +2,10 @@ import { supabase } from '@/shared/database/supabaseClient';
 import { User, RegisterInput, UserProfileUpdate } from '../types';
 import { UserRepository } from './UserRepository';
 
+/**
+ * SupabaseUserRepository — типобезопасный доступ к таблице users.
+ * Политика null: все отсутствующие значения маппим в null, не undefined.
+ */
 export class SupabaseUserRepository implements UserRepository {
   private table = 'users';
 
@@ -46,12 +50,12 @@ export class SupabaseUserRepository implements UserRepository {
     return this.mapRowToDomain(row);
   }
 
-  async update(id: string, data: Partial<UserProfileUpdate>): Promise<User> {
+  async update(id: string, data: UserProfileUpdate): Promise<User> {
     const update = {
-      display_name: data.displayName,
-      bio: data.bio,
-      website: data.website,
-      location: data.location,
+      display_name: data.displayName ?? null,
+      bio: data.bio ?? null,
+      website: data.website ?? null,
+      location: data.location ?? null,
       birth_date: data.birthDate ?? null,
       preferences: data.preferences ?? undefined,
     };
@@ -82,18 +86,18 @@ export class SupabaseUserRepository implements UserRepository {
       updatedAt: new Date(row.updated_at),
       email: row.email,
       username: row.username,
-      displayName: row.display_name ?? undefined,
-      avatar: row.avatar ?? undefined,
+      displayName: row.display_name ?? null,
+      avatar: row.avatar ?? null,
       role: row.role,
-      bio: row.bio ?? undefined,
-      website: row.website ?? undefined,
-      location: row.location ?? undefined,
-      birthDate: row.birth_date ? new Date(row.birth_date) : undefined,
+      bio: row.bio ?? null,
+      website: row.website ?? null,
+      location: row.location ?? null,
+      birthDate: row.birth_date ? new Date(row.birth_date) : null,
       preferences: row.preferences ?? {},
       stats: row.stats ?? {},
       isActive: row.is_active,
       emailVerified: row.email_verified,
-      lastActiveAt: row.last_active_at ? new Date(row.last_active_at) : undefined,
+      lastActiveAt: row.last_active_at ? new Date(row.last_active_at) : null,
     };
   }
 }

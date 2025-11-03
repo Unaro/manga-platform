@@ -1,20 +1,20 @@
-// User module types
+// User module types (Variant A: explicit nulls for empty values)
 export interface User {
   id: string;
   email: string;
   username: string;
-  displayName?: string;
-  avatar?: string;
+  displayName: string | null;  // explicit null instead of undefined
+  avatar: string | null;
   role: UserRole;
-  bio?: string;
-  website?: string;
-  location?: string;
-  birthDate?: Date;
-  preferences: UserPreferences;
-  stats: UserStats;
+  bio: string | null;
+  website: string | null;
+  location: string | null;
+  birthDate: Date | null;
+  preferences: UserPreferences; // keep as object
+  stats: UserStats;             // keep as object
   isActive: boolean;
   emailVerified: boolean;
-  lastActiveAt?: Date;
+  lastActiveAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,30 +59,28 @@ export interface UserStats {
   auctionsWon: number;
 }
 
-// API Types
 export interface RegisterInput {
   email: string;
   username: string;
   password: string;
-  displayName?: string;
+  displayName?: string; // optional, but never undefined at use sites
 }
 
 export interface LoginInput {
-  email?: string;
-  username?: string;
   password: string;
+  email?: string;    // optional keys will be conditionally added (no undefined)
+  username?: string;
 }
 
 export interface UserProfileUpdate {
-  displayName?: string;
-  bio?: string;
-  website?: string;
-  location?: string;
-  birthDate?: Date;
+  displayName?: string | null;
+  bio?: string | null;
+  website?: string | null;
+  location?: string | null;
+  birthDate?: Date | null;
   preferences?: Partial<UserPreferences>;
 }
 
-// Events
 export interface UserRegisteredEvent {
   type: 'user.registered';
   userId: string;
