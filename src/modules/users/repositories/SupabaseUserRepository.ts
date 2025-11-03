@@ -44,8 +44,8 @@ export class SupabaseUserRepository implements UserRepository {
       website: null,
       location: null,
       birth_date: null,
-      preferences: this.defaultPreferences(),
-      stats: this.defaultStats(),
+      preferences: this.defaultPreferences() as unknown as UserInsert['preferences'],
+      stats: this.defaultStats() as unknown as UserInsert['stats'],
       is_active: true,
       email_verified: false,
       last_active_at: null,
@@ -64,7 +64,7 @@ export class SupabaseUserRepository implements UserRepository {
       website: data.website ?? null,
       location: data.location ?? null,
       birth_date: data.birthDate ? data.birthDate.toISOString() : null,
-      ...(data.preferences !== undefined && { preferences: data.preferences }),
+      ...(data.preferences !== undefined && { preferences: data.preferences as unknown as UserUpdate['preferences'] }),
     };
 
     const { data: row, error } = await supabase.from(this.table).update(update).eq('id', id).select('*').single<UserRow>();
