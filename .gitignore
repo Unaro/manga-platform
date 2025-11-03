@@ -3,6 +3,11 @@ node_modules/
 .npm
 npm-debug.log*
 
+# Lock files policy
+# We commit pnpm-lock.yaml or yarn.lock if used. For npm, lockfile is optional.
+# Uncomment next line if you decide NOT to commit npm lockfile:
+# package-lock.json
+
 # Next.js
 .next/
 out/
