@@ -1,27 +1,6 @@
-import { MergeDeep } from 'type-fest';
-import { Database as DatabaseGenerated, Json } from './generated.types';
-import { UserPreferences, UserStats } from '@/modules/users/types';
+// Re-export generated types and add utilities
+export * from './generated.types';
+export type { Database } from './generated.types';
 
-export type Database = MergeDeep<
-  DatabaseGenerated,
-  {
-    public: {
-      Tables: {
-        users: {
-          Row: {
-            preferences: UserPreferences; // строго в домене
-            stats: UserStats;
-          };
-          Insert: {
-            preferences?: UserPreferences | Json; // разрешим Json для совместимости
-            stats?: UserStats | Json;
-          };
-          Update: {
-            preferences?: UserPreferences | Json;
-            stats?: UserStats | Json;
-          };
-        };
-      };
-    };
-  }
->;
+// Export type utilities (already available from generated.types.ts)
+export type { Tables, TablesInsert, TablesUpdate, Enums } from './generated.types';
