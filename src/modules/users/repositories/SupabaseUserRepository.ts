@@ -61,7 +61,7 @@ export class SupabaseUserRepository implements UserRepository {
       website: data.website ?? null,
       location: data.location ?? null,
       birth_date: data.birthDate ? data.birthDate.toISOString() : null,
-      preferences: data.preferences ?? undefined,
+      ...(data.preferences !== undefined && { preferences: data.preferences }),
     };
 
     const { data: row, error } = await supabase.from(this.table).update(update).eq('id', id).select('*').single<UserRow>();
@@ -106,79 +106,30 @@ export class SupabaseUserRepository implements UserRepository {
     };
   }
 
-  private defaultPreferences(): UserPreferences {
+  private defaultPreferences(): UserPreferences { /* same as previous version */
     return {
-      language: 'ru',
-      timezone: 'UTC',
-      theme: 'auto',
-      compactMode: false,
-      profilePublic: true,
-      showEmail: false,
-      showStats: true,
-      notifications: {
-        email: true,
-        browser: true,
-        extension: false,
-        newChapters: true,
-        cardReceived: true,
-        achievements: true,
-        tradeRequests: true,
-        auctionUpdates: true,
-      },
+      language: 'ru', timezone: 'UTC', theme: 'auto', compactMode: false, profilePublic: true,
+      showEmail: false, showStats: true,
+      notifications: { email: true, browser: true, extension: false, newChapters: true, cardReceived: true, achievements: true, tradeRequests: true, auctionUpdates: true },
     };
   }
 
-  private defaultStats(): UserStats {
+  private defaultStats(): UserStats { /* same as previous version */
     return {
-      totalWorksRead: 0,
-      totalChaptersRead: 0,
-      totalReadingTime: 0,
-      averageRating: 0,
-      level: 1,
-      experience: 0,
-      currency: 0,
-      totalCards: 0,
-      uniqueCards: 0,
-      rareCards: 0,
-      achievementsUnlocked: 0,
-      tradesCompleted: 0,
-      auctionsWon: 0,
+      totalWorksRead: 0, totalChaptersRead: 0, totalReadingTime: 0, averageRating: 0, level: 1, experience: 0, currency: 0,
+      totalCards: 0, uniqueCards: 0, rareCards: 0, achievementsUnlocked: 0, tradesCompleted: 0, auctionsWon: 0,
     };
   }
 
   private parsePreferences(raw: UserRow['preferences']): UserPreferences {
-    // raw уже тип UserPreferences (строгий), но защищаемся от возможных рассинхронизаций
     const base = this.defaultPreferences();
     const obj = (raw ?? base) as Partial<UserPreferences>;
-    return {
-      language: obj.language ?? base.language,
-      timezone: obj.timezone ?? base.timezone,
-      theme: obj.theme ?? base.theme,
-      compactMode: obj.compactMode ?? base.compactMode,
-      profilePublic: obj.profilePublic ?? base.profilePublic,
-      showEmail: obj.showEmail ?? base.showEmail,
-      showStats: obj.showStats ?? base.showStats,
-      notifications: { ...base.notifications, ...(obj.notifications ?? {}) },
-    };
+    return { ...base, ...obj, notifications: { ...base.notifications, ...(obj.notifications ?? {}) } };
   }
 
   private parseStats(raw: UserRow['stats']): UserStats {
     const base = this.defaultStats();
     const obj = (raw ?? base) as Partial<UserStats>;
-    return {
-      totalWorksRead: obj.totalWorksRead ?? base.totalWorksRead,
-      totalChaptersRead: obj.totalChaptersRead ?? base.totalChaptersRead,
-      totalReadingTime: obj.totalReadingTime ?? base.totalReadingTime,
-      averageRating: obj.averageRating ?? base.averageRating,
-      level: obj.level ?? base.level,
-      experience: obj.experience ?? base.experience,
-      currency: obj.currency ?? base.currency,
-      totalCards: obj.totalCards ?? base.totalCards,
-      uniqueCards: obj.uniqueCards ?? base.uniqueCards,
-      rareCards: obj.rareCards ?? base.rareCards,
-      achievementsUnlocked: obj.achievementsUnlocked ?? base.achievementsUnlocked,
-      tradesCompleted: obj.tradesCompleted ?? base.tradesCompleted,
-      auctionsWon: obj.auctionsWon ?? base.auctionsWon,
-    };
+    return { ...base, ...obj };
   }
 }

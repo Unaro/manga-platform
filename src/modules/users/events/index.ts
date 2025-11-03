@@ -1,25 +1,21 @@
-// User Events Handler placeholder
 import { UserRegisteredEvent, UserProfileUpdatedEvent } from '../types';
 
 export class UserEventHandler {
   async handleUserRegistered(event: UserRegisteredEvent): Promise<void> {
-    // TODO: Send welcome email
-    // TODO: Create initial game balance
-    // TODO: Grant welcome achievement
+    // TODO: welcome email, initial balances, achievement
     console.log('User registered:', event);
   }
 
   async handleUserProfileUpdated(event: UserProfileUpdatedEvent): Promise<void> {
-    // TODO: Invalidate user cache
-    // TODO: Update search index if needed
+    // TODO: invalidate cache, update search index
     console.log('User profile updated:', event);
   }
 }
 
-// Event registration (will be wired to EventBus)
-export function registerUserEventHandlers(eventBus: any) {
+export function registerUserEventHandlers(eventBus: {
+  subscribe: (type: string, handler: (e: unknown) => Promise<void>) => void;
+}) {
   const handler = new UserEventHandler();
-  
-  // eventBus.subscribe('user.registered', handler.handleUserRegistered);
-  // eventBus.subscribe('user.profile.updated', handler.handleUserProfileUpdated);
+  eventBus.subscribe('user.registered', (e) => handler.handleUserRegistered(e as UserRegisteredEvent));
+  eventBus.subscribe('user.profile.updated', (e) => handler.handleUserProfileUpdated(e as UserProfileUpdatedEvent));
 }
