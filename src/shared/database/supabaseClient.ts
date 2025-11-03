@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-export type DB = any; // TODO: replace with generated types
+/**
+ * Supabase клиент приложения.
+ * NOTE: Тип DB = any используется как ВРЕМЕННЫЙ placeholder до генерации типов Supabase.
+ * План замены: сгенерировать типы через CLI и заменить на строго типизированный Database интерфейс.
+ */
+export type DB = any; // PLACEHOLDER — см. TYPE_USAGE.md
 
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
