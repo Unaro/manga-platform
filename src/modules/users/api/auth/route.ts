@@ -7,7 +7,6 @@ const RegisterSchema = z.object({
   email: z.string().email().max(255),
   username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
   password: z.string().min(8).max(128),
-  // nullable + optional для строгого исключения undefined
   displayName: z.string().max(100).nullable().optional(),
 });
 
@@ -30,7 +29,6 @@ export async function POST(req: NextRequest) {
       const parsed = RegisterSchema.safeParse(body);
       if (!parsed.success) return fail(parsed.error.errors[0]?.message ?? 'Validation error', 400);
 
-      // Исключаем undefined, допускаем null → исключаем его перед передачей
       const registerInput = {
         email: parsed.data.email,
         username: parsed.data.username,
@@ -47,7 +45,6 @@ export async function POST(req: NextRequest) {
       const parsed = LoginSchema.safeParse(body);
       if (!parsed.success) return fail(parsed.error.errors[0]?.message ?? 'Validation error', 400);
 
-      // Тот же паттерн: исключаем undefined ключи
       const loginInput = {
         password: parsed.data.password,
         ...(parsed.data.email !== undefined && { email: parsed.data.email }),
