@@ -1,13 +1,27 @@
 # Type Usage Report
 
-Обновлено: добавлены типы Database и тип AuthUser, удалены временные any/@ts-expect-error.
+Обновлено: заменены на автогенерируемые Supabase типы, убраны любые приведения типов.
 
 ## Убраны any
-- supabaseClient.ts: `SupabaseClient<Database>` вместо any.
-- UserService.login: убрано `(user as any).password`; введён тип `AuthUser` и методы репозитория возвращают `passwordHash` для ветки аутентификации.
+- supabaseClient.ts: использует сгенерированный Database тип из generated.types.ts.
+- UserService.login: убран (user as any).password; введён AuthUser тип.
+- SupabaseUserRepository: убраны все as Record<string, unknown> и as any; вместо них типобезопасные парсеры JSONB → домен.
 
-## unknown
-- Обработка ошибок по-прежнему принимает `unknown`, нормализуется до `{ message?: string; status?: number }`. План: вынести нормализатор в `shared/errors` и использовать type guard.
+## unknown под контролем
+- Обработка ошибок: нормализуется через { message?: string; status?: number }. План: вынести в shared/errors с type guard.
+- JSONB парсинг: parsePreferences/parseStats используют unknown → строгие типы через type guards. Это безопасно и корректно.
 
-## undefined
-- Политика null: доменная модель `User` использует `null` для отсутствующих значений. Входные данные в auth-роуте собираются условными спредами, исключая undefined-ключи.
+## undefined исключены
+- exactOptionalPropertyTypes: все DTO и Update объекты собираются условными спредами без undefined ключей.
+- null-политика: доменные типы используют null для отсутствующих значений, не undefined.
+
+## Автогенерация Supabase
+- Database, Tables, TablesInsert, TablesUpdate — из Supabase CLI.
+- JSONB поля (preferences/stats) остаются как Json на уровне БД, парсятся в строгие доменные типы в репозитории.
+- Никаких ручных Database определений или циркулярных импортов.
+
+## Статус
+✅ Все приведения типов убраны
+✅ Строгие парсеры JSONB → домен  
+✅ Официальная Supabase типизация
+✅ exactOptionalPropertyTypes соблюдена

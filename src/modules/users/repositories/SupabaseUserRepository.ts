@@ -1,14 +1,17 @@
 import { supabase } from '@/shared/database/supabaseClient';
-import type { Database } from '@/shared/database/types';
+import type { Tables, TablesInsert, TablesUpdate } from '@/shared/database/generated.types';
 import { User, UserPreferences, UserStats } from '../types';
 import { UserRepository } from './UserRepository';
 
-type UserRow = Database['public']['Tables']['users']['Row'];
+type UserRow = Tables<'users'>;
+type UserInsert = TablesInsert<'users'>;
+type UserUpdate = TablesUpdate<'users'>;
 
+/** Пользователь с хешем пароля для аутентификации. */
 type AuthUser = User & { passwordHash: string };
 
 export class SupabaseUserRepository implements UserRepository {
-  private table = 'users';
+  private table = 'users' as const;
 
   async findById(id: string): Promise<User | null> {
     const { data, error } = await supabase.from(this.table).select('*').eq('id', id).single<UserRow>();
@@ -31,7 +34,7 @@ export class SupabaseUserRepository implements UserRepository {
   }
 
   async create(data: { email: string; username: string; password: string; displayName?: string }): Promise<User> {
-    const insert: Database['public']['Tables']['users']['Insert'] = {
+    const insert: UserInsert = {
       email: data.email,
       username: data.username,
       display_name: data.displayName ?? null,
@@ -55,7 +58,7 @@ export class SupabaseUserRepository implements UserRepository {
   }
 
   async update(id: string, data: Partial<Pick<User, 'displayName' | 'bio' | 'website' | 'location' | 'birthDate' | 'preferences'>>): Promise<User> {
-    const update: Database['public']['Tables']['users']['Update'] = {
+    const update: UserUpdate = {
       display_name: data.displayName ?? null,
       bio: data.bio ?? null,
       website: data.website ?? null,
@@ -106,30 +109,108 @@ export class SupabaseUserRepository implements UserRepository {
     };
   }
 
-  private defaultPreferences(): UserPreferences { /* same as previous version */
+  /** Возвращает настройки пользователя по умолчанию. */
+  private defaultPreferences(): UserPreferences {
     return {
-      language: 'ru', timezone: 'UTC', theme: 'auto', compactMode: false, profilePublic: true,
-      showEmail: false, showStats: true,
-      notifications: { email: true, browser: true, extension: false, newChapters: true, cardReceived: true, achievements: true, tradeRequests: true, auctionUpdates: true },
+      language: 'ru',
+      timezone: 'UTC',
+      theme: 'auto',
+      compactMode: false,
+      profilePublic: true,
+      showEmail: false,
+      showStats: true,
+      notifications: {
+        email: true,
+        browser: true,
+        extension: false,
+        newChapters: true,
+        cardReceived: true,
+        achievements: true,
+        tradeRequests: true,
+        auctionUpdates: true,
+      },
     };
   }
 
-  private defaultStats(): UserStats { /* same as previous version */
+  /** Возвращает статистику пользователя по умолчанию. */
+  private defaultStats(): UserStats {
     return {
-      totalWorksRead: 0, totalChaptersRead: 0, totalReadingTime: 0, averageRating: 0, level: 1, experience: 0, currency: 0,
-      totalCards: 0, uniqueCards: 0, rareCards: 0, achievementsUnlocked: 0, tradesCompleted: 0, auctionsWon: 0,
+      totalWorksRead: 0,
+      totalChaptersRead: 0,
+      totalReadingTime: 0,
+      averageRating: 0,
+      level: 1,
+      experience: 0,
+      currency: 0,
+      totalCards: 0,
+      uniqueCards: 0,
+      rareCards: 0,
+      achievementsUnlocked: 0,
+      tradesCompleted: 0,
+      auctionsWon: 0,
     };
   }
 
-  private parsePreferences(raw: UserRow['preferences']): UserPreferences {
+  /** Парсит JSONB preferences из БД в строгий доменный тип UserPreferences. */
+  private parsePreferences(raw: unknown): UserPreferences {
     const base = this.defaultPreferences();
-    const obj = (raw ?? base) as Partial<UserPreferences>;
-    return { ...base, ...obj, notifications: { ...base.notifications, ...(obj.notifications ?? {}) } };
+    if (!raw || typeof raw !== 'object') return base;
+    
+    const obj = raw as Record<string, unknown>;
+    return {
+      language: typeof obj.language === 'string' ? obj.language : base.language,
+      timezone: typeof obj.timezone === 'string' ? obj.timezone : base.timezone,
+      theme: (obj.theme === 'light' || obj.theme === 'dark' || obj.theme === 'auto') ? obj.theme : base.theme,
+      compactMode: typeof obj.compactMode === 'boolean' ? obj.compactMode : base.compactMode,
+      profilePublic: typeof obj.profilePublic === 'boolean' ? obj.profilePublic : base.profilePublic,
+      showEmail: typeof obj.showEmail === 'boolean' ? obj.showEmail : base.showEmail,
+      showStats: typeof obj.showStats === 'boolean' ? obj.showStats : base.showStats,
+      notifications: {
+        ...base.notifications,
+        ...(typeof obj.notifications === 'object' && obj.notifications
+          ? this.parseNotificationSettings(obj.notifications as Record<string, unknown>, base.notifications)
+          : {}),
+      },
+    };
   }
 
-  private parseStats(raw: UserRow['stats']): UserStats {
+  /** Парсит JSONB stats из БД в строгий доменный тип UserStats. */
+  private parseStats(raw: unknown): UserStats {
     const base = this.defaultStats();
-    const obj = (raw ?? base) as Partial<UserStats>;
-    return { ...base, ...obj };
+    if (!raw || typeof raw !== 'object') return base;
+    
+    const obj = raw as Record<string, unknown>;
+    const num = (v: unknown, d: number) => (typeof v === 'number' ? v : d);
+    
+    return {
+      totalWorksRead: num(obj.totalWorksRead, base.totalWorksRead),
+      totalChaptersRead: num(obj.totalChaptersRead, base.totalChaptersRead),
+      totalReadingTime: num(obj.totalReadingTime, base.totalReadingTime),
+      averageRating: num(obj.averageRating, base.averageRating),
+      level: num(obj.level, base.level),
+      experience: num(obj.experience, base.experience),
+      currency: num(obj.currency, base.currency),
+      totalCards: num(obj.totalCards, base.totalCards),
+      uniqueCards: num(obj.uniqueCards, base.uniqueCards),
+      rareCards: num(obj.rareCards, base.rareCards),
+      achievementsUnlocked: num(obj.achievementsUnlocked, base.achievementsUnlocked),
+      tradesCompleted: num(obj.tradesCompleted, base.tradesCompleted),
+      auctionsWon: num(obj.auctionsWon, base.auctionsWon),
+    };
+  }
+
+  /** Парсит настройки уведомлений из JSONB. */
+  private parseNotificationSettings(obj: Record<string, unknown>, base: UserPreferences['notifications']): UserPreferences['notifications'] {
+    const bool = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d);
+    return {
+      email: bool(obj.email, base.email),
+      browser: bool(obj.browser, base.browser),
+      extension: bool(obj.extension, base.extension),
+      newChapters: bool(obj.newChapters, base.newChapters),
+      cardReceived: bool(obj.cardReceived, base.cardReceived),
+      achievements: bool(obj.achievements, base.achievements),
+      tradeRequests: bool(obj.tradeRequests, base.tradeRequests),
+      auctionUpdates: bool(obj.auctionUpdates, base.auctionUpdates),
+    };
   }
 }
