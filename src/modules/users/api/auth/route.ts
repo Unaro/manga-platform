@@ -1,20 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+import { RegisterInputSchema, LoginInputSchema } from '../../api/dto';
 import { UserService } from '../../services/UserService';
 import { SupabaseUserRepository } from '../../repositories/SupabaseUserRepository';
-
-const RegisterSchema = z.object({
-  email: z.string().email().max(255),
-  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
-  password: z.string().min(8).max(128),
-  displayName: z.string().max(100).nullable().optional(),
-});
-
-const LoginSchema = z.object({
-  email: z.string().email().optional(),
-  username: z.string().min(3).max(50).optional(),
-  password: z.string().min(8).max(128),
-}).refine(d => d.email || d.username, { message: 'Either email or username must be provided' });
 
 function ok<T>(data: T, status = 200) { return NextResponse.json({ success: true, data }, { status }); }
 function fail(message: string, status = 400) { return NextResponse.json({ success: false, error: message }, { status }); }
@@ -26,14 +13,15 @@ export async function POST(req: NextRequest) {
   try {
     if (url.pathname.endsWith('/register')) {
       const body = await req.json();
-      const parsed = RegisterSchema.safeParse(body);
+      const parsed = RegisterInputSchema.safeParse(body);
       if (!parsed.success) return fail(parsed.error.errors[0]?.message ?? 'Validation error', 400);
 
+      const input = parsed.data;
       const registerInput = {
-        email: parsed.data.email,
-        username: parsed.data.username,
-        password: parsed.data.password,
-        ...(parsed.data.displayName !== null && parsed.data.displayName !== undefined && { displayName: parsed.data.displayName }),
+        email: input.email,
+        username: input.username,
+        password: input.password,
+        ...(input.displayName !== null && input.displayName !== undefined && { displayName: input.displayName }),
       } as const;
 
       const result = await service.register(registerInput);
@@ -42,13 +30,14 @@ export async function POST(req: NextRequest) {
 
     if (url.pathname.endsWith('/login')) {
       const body = await req.json();
-      const parsed = LoginSchema.safeParse(body);
+      const parsed = LoginInputSchema.safeParse(body);
       if (!parsed.success) return fail(parsed.error.errors[0]?.message ?? 'Validation error', 400);
 
+      const input = parsed.data;
       const loginInput = {
-        password: parsed.data.password,
-        ...(parsed.data.email !== undefined && { email: parsed.data.email }),
-        ...(parsed.data.username !== undefined && { username: parsed.data.username }),
+        password: input.password,
+        ...(input.email !== undefined && { email: input.email }),
+        ...(input.username !== undefined && { username: input.username }),
       } as const;
 
       const result = await service.login(loginInput);

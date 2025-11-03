@@ -1,4 +1,4 @@
-// Minimal Database types for Supabase (users table only)
+import type { UserPreferences, UserStats } from '@/modules/users/types';
 export type UUID = string;
 
 export interface Database {
@@ -18,12 +18,12 @@ export interface Database {
           website: string | null;
           location: string | null;
           birth_date: string | null;
-          preferences: Record<string, unknown>;
-          stats: Record<string, unknown>;
+          preferences: UserPreferences; // строгий тип вместо Record
+          stats: UserStats;             // строгий тип вместо Record
           is_active: boolean;
           email_verified: boolean;
           last_active_at: string | null;
-          password: string; // hash stored in DB
+          password: string;
         };
         Insert: {
           email: string;
@@ -35,8 +35,8 @@ export interface Database {
           website: string | null;
           location: string | null;
           birth_date: string | null;
-          preferences: Record<string, unknown>;
-          stats: Record<string, unknown>;
+          preferences: UserPreferences;
+          stats: UserStats;
           is_active: boolean;
           email_verified: boolean;
           last_active_at: string | null;
