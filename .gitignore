@@ -1,0 +1,42 @@
+# Node
+node_modules/
+.npm
+npm-debug.log*
+
+# Lock files policy
+# We commit pnpm-lock.yaml or yarn.lock if used. For npm, lockfile is optional.
+# Uncomment next line if you decide NOT to commit npm lockfile:
+# package-lock.json
+
+# Next.js
+.next/
+out/
+.nextcache/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Tests/Coverage
+coverage/
+.junit/
+
+# Logs
+logs/
+*.log
+
+# Build artifacts
+*.tsbuildinfo
+
+# Supabase
+supabase/.temp/
+
+next-env.d.ts
