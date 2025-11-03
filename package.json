@@ -18,17 +18,22 @@
     "health": "curl -f http://localhost:3000/api/health || echo 'Health check failed'"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
     "next": "^14.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "@supabase/supabase-js": "^2.0.0",
-    "zod": "^3.22.0",
-    "typescript": "^5.0.0",
     "tailwindcss": "^3.3.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "type-fest": "^5.2.0",
+    "typescript": "^5.0.0",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^13.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
@@ -37,9 +42,6 @@
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
     "jest": "^29.0.0",
-    "@testing-library/react": "^13.0.0",
-    "@testing-library/jest-dom": "^6.0.0",
-    "@types/jsonwebtoken": "^9.0.5",
-    "@types/bcryptjs": "^2.4.6"
+    "supabase": "^2.54.11"
   }
 }
