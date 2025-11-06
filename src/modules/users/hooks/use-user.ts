@@ -26,9 +26,18 @@ export function useUpdateProfile(id: string) {
 
   return useMutation({
     mutationFn: async (input: UserProfileUpdate): Promise<User> => {
+      const token = localStorage.getItem("auth_token");
+      
+      if (!token) {
+        throw new Error("Not authenticated");
+      }
+
       const response = await fetch(`/api/users/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(input),
       });
 
@@ -41,31 +50,41 @@ export function useUpdateProfile(id: string) {
       return data.data!;
     },
     onSuccess: (user) => {
-      // Обновить кэш
       queryClient.setQueryData(["user", id], user);
       queryClient.invalidateQueries({ queryKey: ["user", id] });
+      queryClient.invalidateQueries({ queryKey: ["user", "me"] });
     },
   });
 }
 
 /**
- * Hook для получения текущего авторизованного пользователя из токена
+ * Hook для получения текущего авторизованного пользователя
+ * Использует защищенный endpoint /api/auth/me
  */
 export function useCurrentUser() {
-  const getCurrentUserId = (): string | null => {
-    if (typeof window === "undefined") return null;
+  return useQuery({
+    queryKey: ["user", "me"],
+    queryFn: async (): Promise<User> => {
+      const token = localStorage.getItem("auth_token");
 
-    const token = localStorage.getItem("auth_token");
-    if (!token) return null;
+      if (!token) {
+        throw new Error("Not authenticated");
+      }
 
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.sub;
-    } catch {
-      return null;
-    }
-  };
+      const response = await fetch("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-  const userId = getCurrentUserId();
-  return useUser(userId);
+      const data: ApiResponse<User> = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error?.message || "Failed to fetch current user");
+      }
+
+      return data.data!;
+    },
+    retry: false, // Не повторять при 401
+  });
 }
