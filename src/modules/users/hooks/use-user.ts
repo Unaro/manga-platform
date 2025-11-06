@@ -2,10 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User, UserProfileUpdate } from "../schemas/user.schema";
 import type { ApiResponse } from "@/lib/api/error-handler";
 
-export function useUser(id: string) {
+export function useUser(id: string | null | undefined) {
   return useQuery({
     queryKey: ["user", id],
     queryFn: async (): Promise<User> => {
+      if (!id) throw new Error("User ID is required");
+
       const response = await fetch(`/api/users/${id}`);
       const data: ApiResponse<User> = await response.json();
 
@@ -44,4 +46,26 @@ export function useUpdateProfile(id: string) {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
     },
   });
+}
+
+/**
+ * Hook для получения текущего авторизованного пользователя из токена
+ */
+export function useCurrentUser() {
+  const getCurrentUserId = (): string | null => {
+    if (typeof window === "undefined") return null;
+
+    const token = localStorage.getItem("auth_token");
+    if (!token) return null;
+
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.sub;
+    } catch {
+      return null;
+    }
+  };
+
+  const userId = getCurrentUserId();
+  return useUser(userId);
 }

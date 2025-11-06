@@ -12,8 +12,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute
+            staleTime: 60 * 1000, // 1 минута
             refetchOnWindowFocus: false,
+            retry: 1,
           },
         },
       })
@@ -22,6 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // Регистрация event handlers при монтировании
   useEffect(() => {
     registerUserEventHandlers(eventBus);
+    console.log("[Providers] Event handlers registered");
   }, []);
 
   return (

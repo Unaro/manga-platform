@@ -1,9 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type {
-  RegisterInput,
-  LoginInput,
-  User,
-} from "../schemas/user.schema";
+import type { RegisterInput, LoginInput, User } from "../schemas/user.schema";
 import type { ApiResponse } from "@/lib/api/error-handler";
 
 interface AuthResponse {
@@ -32,10 +28,13 @@ export function useRegister() {
     },
     onSuccess: (data) => {
       // Сохранить токен
-      localStorage.setItem("token", data.token);
-      
-      // Инвалидировать кэш пользователя
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_token", data.token);
+      }
+
+      // Инвалидировать кэш
       queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.setQueryData(["user", data.user.id], data.user);
     },
   });
 }
@@ -61,10 +60,30 @@ export function useLogin() {
     },
     onSuccess: (data) => {
       // Сохранить токен
-      localStorage.setItem("token", data.token);
-      
-      // Инвалидировать кэш пользователя
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_token", data.token);
+      }
+
+      // Инвалидировать кэш
       queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.setQueryData(["user", data.user.id], data.user);
+    },
+  });
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      // Удалить токен
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("auth_token");
+      }
+    },
+    onSuccess: () => {
+      // Очистить все кэши
+      queryClient.clear();
     },
   });
 }
