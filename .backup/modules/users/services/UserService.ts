@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User } from '../types';
-import { UserRepository } from '../repositories/UserRepository';
-import { SupabaseUserRepository } from '../repositories/SupabaseUserRepository';
+import type { User } from '../types';
+import type { UserRepository } from '../repositories/UserRepository';
+import type { SupabaseUserRepository } from '../repositories/SupabaseUserRepository';
 import type { RegisterInputDTO, LoginInputDTO, UserProfileUpdateDTO } from '../api/dto';
 import { mapProfileUpdateDtoToDomain } from '../api/mappers';
 import type { InMemoryEventBus, UserRegisteredEvent, UserProfileUpdatedEvent } from '../events';
