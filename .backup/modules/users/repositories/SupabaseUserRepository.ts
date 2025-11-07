@@ -1,7 +1,7 @@
 import { supabase } from '@/shared/database/supabaseClient';
 import type { Json, Tables, TablesInsert, TablesUpdate } from '@/shared/database/generated.types';
-import { User, UserPreferences, UserStats } from '../types';
-import { UserRepository } from './UserRepository';
+import type { User, UserPreferences, UserStats } from '../types';
+import type { UserRepository } from './UserRepository';
 
 type UserRow = Tables<'users'>;
 type UserInsert = TablesInsert<'users'>;

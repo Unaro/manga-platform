@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { RegisterInputSchema, LoginInputSchema } from '../../api/dto';
 import { UserService } from '../../services/UserService';
 import { SupabaseUserRepository } from '../../repositories/SupabaseUserRepository';

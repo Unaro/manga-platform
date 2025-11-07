@@ -1,111 +1,33 @@
-'use client';
-
-import { useState } from 'react';
+import { LoginForm } from "@/components/auth/login-form";
+import Link from "next/link";
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState({
-    emailOrUsername: '',
-    password: '',
-  });
-  const [result, setResult] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setResult(null);
-
-    try {
-      // Определяем, email это или username
-      const isEmail = formData.emailOrUsername.includes('@');
-      const payload = {
-        password: formData.password,
-        ...(isEmail ? { email: formData.emailOrUsername } : { username: formData.emailOrUsername }),
-      };
-
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-      setResult(data);
-
-      if (data.success && data.data.token) {
-        localStorage.setItem('auth-token', data.data.token);
-      }
-    } catch (error) {
-      setResult({ success: false, error: 'Network error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div style={{ maxWidth: '400px', margin: '2rem auto', padding: '2rem' }}>
-      <h1>Вход</h1>
-      
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div>
-          <label htmlFor="emailOrUsername">Email или Username:</label>
-          <input
-            id="emailOrUsername"
-            type="text"
-            required
-            value={formData.emailOrUsername}
-            onChange={(e) => setFormData({ ...formData, emailOrUsername: e.target.value })}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-            placeholder="example@email.com или username"
-          />
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
+          <p className="mt-2 text-gray-600">
+            Login to your Manga Platform account
+          </p>
         </div>
 
-        <div>
-          <label htmlFor="password">Password:</label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-          />
+        <div className="card">
+          <LoginForm />
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: '0.75rem',
-            backgroundColor: loading ? '#ccc' : '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.25rem',
-            cursor: loading ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {loading ? 'Вход...' : 'Войти'}
-        </button>
-      </form>
-
-      {result && (
-        <div style={{ marginTop: '2rem', padding: '1rem', border: '1px solid #ccc', borderRadius: '0.25rem' }}>
-          <h3>Результат:</h3>
-          <pre style={{ fontSize: '0.875rem', overflow: 'auto' }}>
-            {JSON.stringify(result, null, 2)}
-          </pre>
+        <div className="text-center space-y-2">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{" "}
+            <Link href="/auth/register" className="text-blue-600 hover:underline font-medium">
+              Create one now
+            </Link>
+          </p>
+          <p className="text-xs text-gray-500">
+            You can login with either your email or username
+          </p>
         </div>
-      )}
-
-      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-        <a href="/auth/register" style={{ color: '#007bff', textDecoration: 'none' }}>
-          Нет аккаунта? Зарегистрироваться
-        </a>
-        {' | '}
-        <a href="/profile" style={{ color: '#007bff', textDecoration: 'none' }}>
-          К профилю
-        </a>
       </div>
-    </div>
+    </main>
   );
 }
