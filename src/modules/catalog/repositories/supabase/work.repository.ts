@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/shared/database/types";
 import type {
   IWorkRepository,
   FindManyWorksParams,

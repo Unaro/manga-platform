@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/shared/database/types";
 import { GenreRepositorySupabase } from "@/modules/catalog/repositories/supabase/metadata.repository";
 
 export async function GET() {

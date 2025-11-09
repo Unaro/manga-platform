@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useAuth } from "@/stores/auth.store";
+import { createClient } from "@/lib/supabase/client";
 
 const LoginFormSchema = z.object({
   identifier: z.string().min(1, "Email or username is required"),
@@ -16,8 +16,8 @@ type LoginFormInput = z.infer<typeof LoginFormSchema>;
 
 export function LoginForm() {
   const router = useRouter();
-  const setUser = useAuth((state) => state.setUser);
   const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
 
   const {
     register,
@@ -35,31 +35,41 @@ export function LoginForm() {
     setError(null);
     
     try {
-      const payload = {
-        password: data.password,
-        ...(isEmail ? { email: data.identifier } : { username: data.identifier }),
-      };
+      // Если это email - логинимся через Supabase Auth напрямую
+      if (isEmail) {
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: data.identifier,
+          password: data.password,
+        });
 
-      // Шаг 1: Вызываем API логина
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+        if (authError) {
+          throw authError;
+        }
+      } else {
+        // Если это username - сначала находим email по username
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("email")
+          .eq("username", data.identifier)
+          .single();
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || "Login failed");
+        if (userError || !userData) {
+          throw new Error("User not found");
+        }
+
+        // Теперь логинимся через email
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: userData.email,
+          password: data.password,
+        });
+
+        if (authError) {
+          throw authError;
+        }
       }
 
-      const result = await response.json();
-      
-      // Шаг 2: Сохраняем в store
-      setUser(result.data.user, result.data.session?.access_token);
-      
-      // Шаг 3: КРИТИЧНО - делаем hard redirect для синхронизации cookies
-      // Это гарантирует, что server-side получит актуальные cookies
-      window.location.href = "/dashboard";
+      router.push("/dashboard");
+      router.refresh();
     } catch (err: any) {
       setError(err.message || "An error occurred during login");
     }
@@ -98,7 +108,7 @@ export function LoginForm() {
           type="password"
           {...register("password")}
           className="input"
-          placeholder="••••••••"
+          placeholder="password"
           disabled={isSubmitting}
         />
         {errors.password && (

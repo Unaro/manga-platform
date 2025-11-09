@@ -3,8 +3,9 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useAuth } from "@/stores/auth.store";
+import { createClient } from "@/lib/supabase/client";
 
 const RegisterFormSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -19,8 +20,9 @@ const RegisterFormSchema = z.object({
 type RegisterFormInput = z.infer<typeof RegisterFormSchema>;
 
 export function RegisterForm() {
-  const setUser = useAuth((state) => state.setUser);
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
 
   const {
     register,
@@ -34,28 +36,43 @@ export function RegisterForm() {
     setError(null);
     
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: data.email,
-          username: data.username,
-          password: data.password,
-        }),
+      // Шаг 1: Регистрация через Supabase Auth
+      // Пароль автоматически хэшируется и сохраняется в auth.users
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            username: data.username,
+          },
+        },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || "Registration failed");
+      if (authError) {
+        throw authError;
       }
 
-      const result = await response.json();
-      
-      // Сохраняем в store
-      setUser(result.data.user, result.data.session?.access_token);
-      
-      // Hard redirect для синхронизации
-      window.location.href = "/dashboard";
+      // Шаг 2: Создаём профиль в public.users
+      // Пароль НЕ передаём - он уже в auth.users
+      if (authData.user) {
+        const { error: insertError } = await supabase
+          .from("users")
+          .insert({
+            id: authData.user.id,
+            email: data.email,
+            username: data.username,
+            role: "user",
+            email_verified: false,
+            is_active: true,
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
+      router.push("/dashboard");
+      router.refresh();
     } catch (err: any) {
       setError(err.message || "An error occurred during registration");
     }
@@ -106,7 +123,7 @@ export function RegisterForm() {
           type="password"
           {...register("password")}
           className="input"
-          placeholder="••••••••"
+          placeholder="password"
           disabled={isSubmitting}
         />
         {errors.password && (
@@ -123,7 +140,7 @@ export function RegisterForm() {
           type="password"
           {...register("confirmPassword")}
           className="input"
-          placeholder="••••••••"
+          placeholder="password"
           disabled={isSubmitting}
         />
         {errors.confirmPassword && (

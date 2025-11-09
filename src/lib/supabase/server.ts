@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import type { Database } from "@/shared/database/generated.types";
+import type { Database } from "@/shared/database/types";
 
 /**
  * Создает server-side Supabase client с cookies для auth

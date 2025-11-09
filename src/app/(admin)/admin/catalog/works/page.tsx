@@ -3,13 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useWorks } from "@/modules/catalog/hooks";
+import { useNotifications } from "@/stores/notifications.store";
 
 export default function AdminWorksPage() {
   const [page, setPage] = useState(1);
   const [type, setType] = useState<"manga" | "manhwa" | "manhua" | undefined>();
   const [status, setStatus] = useState<"upcoming" | "ongoing" | "completed" | "hiatus" | "cancelled" | undefined>();
+  const { add: addNotification } = useNotifications();
 
-  const { data, isLoading } = useWorks({
+  const { data, isLoading, error } = useWorks({
     page,
     limit: 20,
     ...(type && { type }),
@@ -17,6 +19,15 @@ export default function AdminWorksPage() {
     sort: "createdAt",
     order: "desc"
   });
+
+  if (error) {
+    addNotification({
+      type: "error",
+      title: "Failed to load works",
+      message: error.message,
+      duration: 5000,
+    });
+  }
 
   return (
     <div>

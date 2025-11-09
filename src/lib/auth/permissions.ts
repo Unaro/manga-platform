@@ -1,4 +1,4 @@
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/shared/database/types";
 
 export type UserRole = Database["public"]["Enums"]["user_role"];
 
