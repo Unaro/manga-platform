@@ -1,69 +1,63 @@
-import { NextRequest, NextResponse } from "next/server";
-import { verifyToken, extractToken, type JwtPayload } from "./verify-token";
-import { type ApiResponse } from "@/lib/api/error-handler";
+import { type NextRequest, NextResponse } from "next/server";
+import type { AuthResult } from "./server";
+import { requireAuth, requirePermission, requirePermissions } from "./server";
+import type { Permission } from "./permissions";
 
-export interface AuthenticatedRequest extends NextRequest {
-  user: JwtPayload;
-}
+export type AuthenticatedRequest = NextRequest & {
+  auth: AuthResult;
+};
 
 /**
- * Higher-order function для защиты API routes
+ * Route handler с аутентификацией
+ * context.params теперь обычный объект (не Promise)
  */
-export function withAuth<T = unknown>(
-  handler: (
-    request: AuthenticatedRequest,
-    context: any
-  ) => Promise<NextResponse<ApiResponse<T>>>
-) {
-  return async (
-    request: NextRequest,
-    context: any
-  ): Promise<NextResponse<ApiResponse<T | unknown>>> => {
-    try {
-      const authHeader = request.headers.get("authorization");
-      const token = extractToken(authHeader);
+type RouteHandler = (
+  request: NextRequest,
+  context: { params: any },
+  auth: AuthResult
+) => Promise<NextResponse>;
 
-      if (!token) {
-        const error = new Error("No token provided");
-        (error as any).status = 401;
-        throw error;
-      }
-
-      const user = verifyToken(token);
-
-      // Добавляем user к request
-      const authenticatedRequest = request as AuthenticatedRequest;
-      authenticatedRequest.user = user;
-
-      return await handler(authenticatedRequest, context);
-    } catch (error) {
-      // Создаем правильный error response
-      const errorResponse: ApiResponse<unknown> = {
-        error: {
-          code: (error as any).code || "AUTH_ERROR",
-          message: error instanceof Error ? error.message : "Authentication failed",
-        },
-        metadata: {
-          timestamp: new Date(),
-          requestId: crypto.randomUUID(),
-        },
-      };
-
-      const status = (error as any).status || 401;
-      return NextResponse.json(errorResponse, { status }) as NextResponse<ApiResponse<T | unknown>>;
+/**
+ * HOC для защиты route через аутентификацию
+ */
+export function withAuth(handler: RouteHandler) {
+  return async (request: NextRequest, context: { params: any }) => {
+    const authResult = await requireAuth(request);
+    
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+
+    return handler(request, context, authResult);
   };
 }
 
 /**
- * Проверяет роль пользователя
+ * HOC для защиты route через конкретное разрешение
  */
-export function requireRole(allowedRoles: string[]) {
-  return (user: JwtPayload) => {
-    if (!allowedRoles.includes(user.role)) {
-      const error = new Error("Insufficient permissions");
-      (error as any).status = 403;
-      throw error;
+export function withPermission(permission: Permission, handler: RouteHandler) {
+  return async (request: NextRequest, context: { params: any }) => {
+    const authResult = await requirePermission(request, permission);
+    
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+
+    return handler(request, context, authResult);
+  };
+}
+
+/**
+ * HOC для защиты route через множественные разрешения
+ */
+export function withPermissions(permissions: Permission[], handler: RouteHandler) {
+  return async (request: NextRequest, context: { params: any }) => {
+    const authResult = await requirePermissions(request, permissions);
+    
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
+    return handler(request, context, authResult);
   };
 }

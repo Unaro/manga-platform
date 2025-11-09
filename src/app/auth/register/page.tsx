@@ -1,6 +1,11 @@
-import { RegisterForm } from "@/components/auth/register-form";
-import Link from "next/link";
+"use client";
 
+import Link from "next/link";
+import { RegisterForm } from "@/components/auth/register-form";
+
+/**
+ * RegisterPage — упрощенная версия
+ */
 export default function RegisterPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
@@ -8,7 +13,7 @@ export default function RegisterPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">Create Account</h1>
           <p className="mt-2 text-gray-600">
-            Join Manga Platform and start your collection
+            Join Manga Platform today
           </p>
         </div>
 

@@ -3,12 +3,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { LoginInput } from "@/modules/users/schemas/user.schema";
-import { useLogin } from "@/modules/users/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
-// Кастомная схема для формы логина
 const LoginFormSchema = z.object({
   identifier: z.string().min(1, "Email or username is required"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -18,8 +16,8 @@ type LoginFormInput = z.infer<typeof LoginFormSchema>;
 
 export function LoginForm() {
   const router = useRouter();
-  const login = useLogin();
-  const [identifierType, setIdentifierType] = useState<"email" | "username">("email");
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
 
   const {
     register,
@@ -30,22 +28,50 @@ export function LoginForm() {
     resolver: zodResolver(LoginFormSchema),
   });
 
-  // Определяем тип идентификатора (email или username)
   const identifier = watch("identifier");
   const isEmail = identifier?.includes("@");
 
   const onSubmit = async (data: LoginFormInput) => {
+    setError(null);
+    
     try {
-      // Преобразуем данные формы в LoginInput
-      const loginData: LoginInput = {
-        password: data.password,
-        ...(isEmail ? { email: data.identifier } : { username: data.identifier }),
-      };
+      // Если это email - логинимся через Supabase Auth напрямую
+      if (isEmail) {
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: data.identifier,
+          password: data.password,
+        });
 
-      await login.mutateAsync(loginData);
+        if (authError) {
+          throw authError;
+        }
+      } else {
+        // Если это username - сначала находим email по username
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("email")
+          .eq("username", data.identifier)
+          .single();
+
+        if (userError || !userData) {
+          throw new Error("User not found");
+        }
+
+        // Теперь логинимся через email
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: userData.email,
+          password: data.password,
+        });
+
+        if (authError) {
+          throw authError;
+        }
+      }
+
       router.push("/dashboard");
-    } catch (error) {
-      console.error("Login failed:", error);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || "An error occurred during login");
     }
   };
 
@@ -61,10 +87,7 @@ export function LoginForm() {
           {...register("identifier")}
           className="input"
           placeholder="your@email.com or username"
-          onChange={(e) => {
-            register("identifier").onChange(e);
-            setIdentifierType(e.target.value.includes("@") ? "email" : "username");
-          }}
+          disabled={isSubmitting}
         />
         {errors.identifier && (
           <p className="text-sm text-red-600 animate-in">{errors.identifier.message}</p>
@@ -85,7 +108,8 @@ export function LoginForm() {
           type="password"
           {...register("password")}
           className="input"
-          placeholder="••••••••"
+          placeholder="password"
+          disabled={isSubmitting}
         />
         {errors.password && (
           <p className="text-sm text-red-600 animate-in">{errors.password.message}</p>
@@ -94,10 +118,10 @@ export function LoginForm() {
 
       <button
         type="submit"
-        disabled={isSubmitting || login.isPending}
+        disabled={isSubmitting}
         className="btn btn-primary w-full h-10"
       >
-        {isSubmitting || login.isPending ? (
+        {isSubmitting ? (
           <>
             <span className="spinner mr-2" />
             Logging in...
@@ -107,9 +131,9 @@ export function LoginForm() {
         )}
       </button>
 
-      {login.error && (
+      {error && (
         <div className="rounded-md bg-red-50 border border-red-200 p-3 animate-in">
-          <p className="text-sm text-red-600 text-center">{login.error.message}</p>
+          <p className="text-sm text-red-600 text-center">{error}</p>
         </div>
       )}
     </form>
