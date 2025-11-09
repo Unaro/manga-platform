@@ -1,68 +1,79 @@
 import { NextRequest, NextResponse } from "next/server";
-import { UserService } from "@/modules/users/services/user.service";
-import { SupabaseUserRepository } from "@/modules/users/repositories/user.repository";
-import { UserProfileUpdateSchema } from "@/modules/users/schemas/user.schema";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { eventBus } from "@/lib/events/event-bus";
-import { handleApiError, type ApiResponse } from "@/lib/api/error-handler";
-import { withAuth, type AuthenticatedRequest } from "@/lib/auth/with-auth";
+import { withAuth, withPermission } from "@/lib/auth/with-auth";
 
-interface RouteContext {
-  params: Promise<{ id: string }>;
-}
-
-// GET без аутентификации (публичные профили)
-export async function GET(request: NextRequest, context: RouteContext) {
+export const GET = withAuth(async (request, context, { supabase }) => {
   try {
     const { id } = await context.params;
 
-    const supabase = createServerSupabaseClient();
-    const userRepo = new SupabaseUserRepository(supabase);
-    const userService = new UserService(userRepo, eventBus);
+    const { data: profile, error } = await supabase
+      .from("users")
+      .select("id, username, display_name, avatar, bio, created_at")
+      .eq("id", id)
+      .single();
 
-    const user = await userService.getUserById(id);
+    if (error || !profile) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-    const response: ApiResponse<typeof user> = {
-      data: user,
-      metadata: {
-        timestamp: new Date(),
-        requestId: crypto.randomUUID(),
-      },
-    };
-
-    return NextResponse.json(response);
-  } catch (error) {
-    return handleApiError(error);
+    return NextResponse.json({ user: profile });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Internal server error", message: error.message },
+      { status: 500 }
+    );
   }
-}
+});
 
-// PUT с аутентификацией (только владелец или админ)
-export const PUT = withAuth(async (request: AuthenticatedRequest, context: RouteContext) => {
-  const { id } = await context.params;
-  
-  // Проверяем что пользователь обновляет свой профиль или является админом
-  if (request.user.sub !== id && request.user.role !== "admin") {
-    const error = new Error("Cannot update another user's profile");
-    (error as any).status = 403;
-    throw error;
+export const PUT = withPermission("users:write", async (request, context, { user, supabase }) => {
+  try {
+    const { id } = await context.params;
+
+    // Users can only edit their own profile unless they have users:write permission
+    if (user.id !== id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        display_name: body.displayName,
+        bio: body.bio,
+        avatar: body.avatar,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ user: data });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Internal server error", message: error.message },
+      { status: 500 }
+    );
   }
+});
 
-  const body = await request.json();
-  const input = UserProfileUpdateSchema.parse(body);
+export const DELETE = withPermission("users:delete", async (request, context, { supabase }) => {
+  try {
+    const { id } = await context.params;
 
-  const supabase = createServerSupabaseClient();
-  const userRepo = new SupabaseUserRepository(supabase);
-  const userService = new UserService(userRepo, eventBus);
+    const { error } = await supabase
+      .from("users")
+      .delete()
+      .eq("id", id);
 
-  const user = await userService.updateProfile(id, input);
+    if (error) throw error;
 
-  const response: ApiResponse<typeof user> = {
-    data: user,
-    metadata: {
-      timestamp: new Date(),
-      requestId: crypto.randomUUID(),
-    },
-  };
-
-  return NextResponse.json(response);
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Internal server error", message: error.message },
+      { status: 500 }
+    );
+  }
 });

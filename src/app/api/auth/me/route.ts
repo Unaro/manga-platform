@@ -1,29 +1,33 @@
-import { NextResponse } from "next/server";
-import { UserService } from "@/modules/users/services/user.service";
-import { SupabaseUserRepository } from "@/modules/users/repositories/user.repository";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { eventBus } from "@/lib/events/event-bus";
-import { type ApiResponse } from "@/lib/api/error-handler";
-import { withAuth, type AuthenticatedRequest } from "@/lib/auth/with-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuth } from "@/lib/auth/with-auth";
 
-/**
- * GET /api/auth/me
- * Получить информацию о текущем пользователе
- */
-export const GET = withAuth(async (request: AuthenticatedRequest) => {
-  const supabase = createServerSupabaseClient();
-  const userRepo = new SupabaseUserRepository(supabase);
-  const userService = new UserService(userRepo, eventBus);
+export const GET = withAuth(async (request, context, { user, supabase }) => {
+  try {
+    const { data: profile, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", user.id)
+      .single();
 
-  const user = await userService.getUserById(request.user.sub);
+    if (error || !profile) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-  const response: ApiResponse<typeof user> = {
-    data: user,
-    metadata: {
-      timestamp: new Date(),
-      requestId: crypto.randomUUID(),
-    },
-  };
-
-  return NextResponse.json(response);
+    return NextResponse.json({ 
+      user: {
+        id: profile.id,
+        email: profile.email,
+        username: profile.username,
+        displayName: profile.display_name,
+        avatar: profile.avatar,
+        role: profile.role,
+        createdAt: profile.created_at
+      }
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Internal server error", message: error.message },
+      { status: 500 }
+    );
+  }
 });

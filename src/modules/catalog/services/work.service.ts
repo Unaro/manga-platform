@@ -1,127 +1,79 @@
-import type { IWorkRepository } from "../repositories";
-import type { ISourceRepository } from "../repositories";
-import type { IAuthorRepository, IGenreRepository, ITagRepository } from "../repositories";
+import type {
+  IWorkRepository,
+  IAuthorRepository,
+  IGenreRepository,
+  ITagRepository,
+  FindManyWorksParams
+} from "../repositories";
 import type { Work, WorkWithRelations, WorkSummary } from "../schemas/work.schema";
-import type { GetWorksQuery, SearchWorksQuery, CreateWorkInput, UpdateWorkInput } from "../schemas/dto.schema";
-import type { Pagination } from "../schemas/dto.schema";
-import type { FindManyWorksParams } from "../repositories/work.repository.interface";
 
-export interface GetWorksResult {
-  data: WorkSummary[];
-  pagination: Pagination;
+export interface CreateWorkInput {
+  title: string;
+  slug: string;
+  description?: string;
+  type: "manga" | "manhwa" | "manhua";
+  status: "upcoming" | "ongoing" | "completed" | "hiatus" | "cancelled";
+  coverUrl?: string;
+  alternativeTitles?: {
+    english?: string;
+    romaji?: string;
+    native?: string;
+  };
+  authorIds?: string[];
+  genreIds?: string[];
+  tagIds?: string[];
+  addedBy: string;
 }
 
-export interface SearchWorksResult {
-  data: Array<{
-    work: WorkSummary;
-    rank: number;
-    matchedFields: string[];
-  }>;
+export interface UpdateWorkInput {
+  title?: string;
+  slug?: string;
+  description?: string;
+  type?: "manga" | "manhwa" | "manhua";
+  status?: "upcoming" | "ongoing" | "completed" | "hiatus" | "cancelled";
+  coverUrl?: string;
+  alternativeTitles?: {
+    english?: string;
+    romaji?: string;
+    native?: string;
+  };
 }
 
 export class WorkService {
   constructor(
-    private workRepository: IWorkRepository,
-    private sourceRepository: ISourceRepository,
-    private authorRepository: IAuthorRepository,
-    private genreRepository: IGenreRepository,
-    private tagRepository: ITagRepository
+    private workRepo: IWorkRepository,
+    private authorRepo: IAuthorRepository,
+    private genreRepo: IGenreRepository,
+    private tagRepo: ITagRepository
   ) {}
 
-  async getWorks(query: GetWorksQuery): Promise<GetWorksResult> {
-    const { page, limit, sort, order, type, status, genres, tags, source } = query;
-    
-    let genreIds: string[] | undefined;
-    let tagIds: string[] | undefined;
-    let sourceId: string | undefined;
-    
-    if (genres && genres.length > 0) {
-      const genreEntities = await Promise.all(
-        genres.map(slug => this.genreRepository.findBySlug(slug))
-      );
-      genreIds = genreEntities.filter(g => g !== null).map(g => g!.id);
-    }
-    
-    if (tags && tags.length > 0) {
-      const tagEntities = await Promise.all(
-        tags.map(slug => this.tagRepository.findBySlug(slug))
-      );
-      tagIds = tagEntities.filter(t => t !== null).map(t => t!.id);
-    }
-    
-    if (source) {
-      const sourceEntity = await this.sourceRepository.findBySlug(source);
-      sourceId = sourceEntity?.id;
-    }
-    
-    const params: FindManyWorksParams = {
-      page,
-      limit,
-      sort,
-      order
-    };
-    
-    if (type) params.type = type;
-    if (status) params.status = status;
-    if (genreIds) params.genreIds = genreIds;
-    if (tagIds) params.tagIds = tagIds;
-    if (sourceId) params.sourceId = sourceId;
-    
-    const { works, total } = await this.workRepository.findMany(params);
-    
-    const totalPages = Math.ceil(total / limit);
-    
-    return {
-      data: works,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages
-      }
-    };
+  async getWorkBySlug(slug: string): Promise<WorkWithRelations | null> {
+    const work = await this.workRepo.findBySlug(slug);
+    if (!work) return null;
+    return this.workRepo.findByIdWithRelations(work.id);
   }
 
   async getWorkById(id: string): Promise<WorkWithRelations | null> {
-    const work = await this.workRepository.findByIdWithRelations(id);
-    
-    if (work) {
-      this.workRepository.incrementViewCount(id).catch(err => {
-        console.error(`Failed to increment view count for work ${id}:`, err);
-      });
-    }
-    
-    return work;
+    return this.workRepo.findByIdWithRelations(id);
   }
 
-  async getWorkBySlug(slug: string): Promise<Work | null> {
-    return await this.workRepository.findBySlug(slug);
+  async listWorks(params: FindManyWorksParams): Promise<{ works: WorkSummary[]; total: number }> {
+    return this.workRepo.findMany(params);
   }
 
-  async searchWorks(query: SearchWorksQuery): Promise<SearchWorksResult> {
-    const { q, limit = 20 } = query;
-    
-    const results = await this.workRepository.search(q, limit);
-    
-    return {
-      data: results
-    };
+  async searchWorks(query: string, limit: number = 20) {
+    return this.workRepo.search(query, limit);
   }
 
-  async createWork(
-    input: CreateWorkInput,
-    userId: string
-  ): Promise<Work> {
-    const slug = this.generateSlug(input.title);
-    
-    const exists = await this.workRepository.existsBySlug(slug);
+  async createWork(input: CreateWorkInput): Promise<Work> {
+    const exists = await this.workRepo.existsBySlug(input.slug);
     if (exists) {
-      throw new Error(`Work with slug "${slug}" already exists`);
+      throw new Error(`Work with slug "${input.slug}" already exists`);
     }
-    
-    const work = await this.workRepository.create({
+
+    const work = await this.workRepo.create({
       title: input.title,
-      slug,
+      slug: input.slug,
       description: input.description ?? null,
       type: input.type,
       status: input.status,
@@ -131,79 +83,101 @@ export class WorkService {
         romaji: input.alternativeTitles?.romaji ?? null,
         native: input.alternativeTitles?.native ?? null
       },
-      addedBy: userId
+      addedBy: input.addedBy
     });
-    
+
     if (input.authorIds && input.authorIds.length > 0) {
-      await Promise.all(
-        input.authorIds.map((authorId, index) =>
-          this.authorRepository.linkToWork(work.id, authorId, index)
-        )
-      );
+      for (let i = 0; i < input.authorIds.length; i++) {
+        const authorId = input.authorIds[i];
+        if (authorId) {
+          await this.authorRepo.linkToWork(work.id, authorId, i);
+        }
+      }
     }
-    
+
     if (input.genreIds && input.genreIds.length > 0) {
-      await Promise.all(
-        input.genreIds.map(genreId =>
-          this.genreRepository.linkToWork(work.id, genreId)
-        )
-      );
+      for (const genreId of input.genreIds) {
+        if (genreId) {
+          await this.genreRepo.linkToWork(work.id, genreId);
+        }
+      }
     }
-    
+
     if (input.tagIds && input.tagIds.length > 0) {
-      await Promise.all(
-        input.tagIds.map(tagId =>
-          this.tagRepository.linkToWork(work.id, tagId)
-        )
-      );
+      for (const tagId of input.tagIds) {
+        if (tagId) {
+          await this.tagRepo.linkToWork(work.id, tagId);
+        }
+      }
     }
-    
+
     return work;
   }
 
-  async updateWork(
-    id: string,
-    input: UpdateWorkInput
-  ): Promise<Work> {
+  async updateWork(id: string, input: UpdateWorkInput): Promise<Work> {
     const updateData: any = {};
-    
-    if (input.title !== undefined) {
-      updateData.title = input.title;
-      updateData.slug = this.generateSlug(input.title);
-      
-      const existing = await this.workRepository.findBySlug(updateData.slug);
-      if (existing && existing.id !== id) {
-        throw new Error(`Work with slug "${updateData.slug}" already exists`);
-      }
-    }
-    
-    if (input.description !== undefined) updateData.description = input.description;
+    if (input.title !== undefined) updateData.title = input.title;
+    if (input.slug !== undefined) updateData.slug = input.slug;
+    if (input.description !== undefined) updateData.description = input.description ?? null;
     if (input.type !== undefined) updateData.type = input.type;
     if (input.status !== undefined) updateData.status = input.status;
-    if (input.coverUrl !== undefined) updateData.coverUrl = input.coverUrl;
+    if (input.coverUrl !== undefined) updateData.coverUrl = input.coverUrl ?? null;
     if (input.alternativeTitles !== undefined) {
-      updateData.alternativeTitles = input.alternativeTitles;
+      updateData.alternativeTitles = {
+        english: input.alternativeTitles.english ?? null,
+        romaji: input.alternativeTitles.romaji ?? null,
+        native: input.alternativeTitles.native ?? null
+      };
     }
-    
-    return await this.workRepository.update(id, updateData);
+    return this.workRepo.update(id, updateData);
   }
 
   async deleteWork(id: string): Promise<void> {
-    await this.workRepository.delete(id);
+    await this.workRepo.delete(id);
+  }
+
+  async incrementViewCount(id: string): Promise<void> {
+    await this.workRepo.incrementViewCount(id);
   }
 
   async getWorkStatistics(id: string) {
-    return await this.workRepository.getStatistics(id);
+    return this.workRepo.getStatistics(id);
   }
 
-  private generateSlug(title: string): string {
-    return title
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .substring(0, 100);
+  async linkAuthors(workId: string, authorIds: string[]): Promise<void> {
+    for (let i = 0; i < authorIds.length; i++) {
+      const authorId = authorIds[i];
+      if (authorId) {
+        await this.authorRepo.linkToWork(workId, authorId, i);
+      }
+    }
+  }
+
+  async unlinkAuthor(workId: string, authorId: string): Promise<void> {
+    await this.authorRepo.unlinkFromWork(workId, authorId);
+  }
+
+  async linkGenres(workId: string, genreIds: string[]): Promise<void> {
+    for (const genreId of genreIds) {
+      if (genreId) {
+        await this.genreRepo.linkToWork(workId, genreId);
+      }
+    }
+  }
+
+  async unlinkGenre(workId: string, genreId: string): Promise<void> {
+    await this.genreRepo.unlinkFromWork(workId, genreId);
+  }
+
+  async linkTags(workId: string, tagIds: string[]): Promise<void> {
+    for (const tagId of tagIds) {
+      if (tagId) {
+        await this.tagRepo.linkToWork(workId, tagId);
+      }
+    }
+  }
+
+  async unlinkTag(workId: string, tagId: string): Promise<void> {
+    await this.tagRepo.unlinkFromWork(workId, tagId);
   }
 }
-
