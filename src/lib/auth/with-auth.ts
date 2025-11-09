@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import type { AuthResult } from "./server";
 import { requireAuth, requirePermission, requirePermissions } from "./server";
 import type { Permission } from "./permissions";

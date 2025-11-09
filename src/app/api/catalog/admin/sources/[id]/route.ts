@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/shared/database/types";
 import { SourceRepositorySupabase } from "@/modules/catalog/repositories/supabase/source.repository";

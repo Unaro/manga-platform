@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import type { UserRole, Permission } from "./permissions";
 import { hasPermission, hasAllPermissions } from "./permissions";
 
