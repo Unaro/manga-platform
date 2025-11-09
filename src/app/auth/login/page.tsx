@@ -1,6 +1,13 @@
-import { LoginForm } from "@/components/auth/login-form";
-import Link from "next/link";
+"use client";
 
+import Link from "next/link";
+import { LoginForm } from "@/components/auth/login-form";
+
+/**
+ * LoginPage — упрощенная версия
+ * Проверка авторизации происходит после hard redirect на /dashboard
+ * Не нужно проверять isAuthenticated здесь, т.к. после login делаем window.location.href
+ */
 export default function LoginPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">

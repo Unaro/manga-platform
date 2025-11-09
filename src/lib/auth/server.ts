@@ -1,12 +1,14 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 import type { UserRole, Permission } from "./permissions";
 import { hasPermission, hasAllPermissions } from "./permissions";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface AuthenticatedUser {
   id: string;
   email: string;
   role: UserRole;
+  username: string;
 }
 
 export interface AuthResult {
@@ -15,30 +17,39 @@ export interface AuthResult {
 }
 
 export async function getAuthUser(request: NextRequest): Promise<AuthResult | NextResponse> {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  // Парсим JWT из cookie "token"
+  const token = request.cookies.get("token")?.value;
 
-  if (error || !user) {
+  if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET as string) as any;
 
-  if (profileError || !profile) {
-    return NextResponse.json({ error: "User profile not found" }, { status: 401 });
+    // Можно также создать Supabase client, если нужно для запроса данных
+    const supabase = await createServerSupabaseClient();
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("role, username")
+      .eq("id", payload.sub)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: "User profile not found" }, { status: 401 });
+    }
+
+    const authenticatedUser: AuthenticatedUser = {
+      id: payload.sub,
+      email: payload.email,
+      username: payload.username,
+      role: profile.role
+    };
+
+    return { user: authenticatedUser, supabase };
+  } catch (error) {
+    return NextResponse.json({ error: "Invalid auth token" }, { status: 401 });
   }
-
-  const authenticatedUser: AuthenticatedUser = {
-    id: user.id,
-    email: user.email!,
-    role: profile.role
-  };
-
-  return { user: authenticatedUser, supabase };
 }
 
 export async function requireAuth(request: NextRequest) {

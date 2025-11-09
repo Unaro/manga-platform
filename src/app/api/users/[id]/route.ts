@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, withPermission } from "@/lib/auth/with-auth";
 
+/**
+ * GET /api/users/:id
+ * Получение публичного профиля пользователя
+ */
 export const GET = withAuth(async (request, context, { supabase }) => {
   try {
-    const { id } = await context.params;
+    const { id } = context.params;
 
     const { data: profile, error } = await supabase
       .from("users")
@@ -24,9 +28,13 @@ export const GET = withAuth(async (request, context, { supabase }) => {
   }
 });
 
+/**
+ * PUT /api/users/:id
+ * Обновление профиля пользователя
+ */
 export const PUT = withPermission("users:write", async (request, context, { user, supabase }) => {
   try {
-    const { id } = await context.params;
+    const { id } = context.params;
 
     // Users can only edit their own profile unless they have users:write permission
     if (user.id !== id) {
@@ -58,9 +66,13 @@ export const PUT = withPermission("users:write", async (request, context, { user
   }
 });
 
+/**
+ * DELETE /api/users/:id
+ * Удаление пользователя (только для администраторов)
+ */
 export const DELETE = withPermission("users:delete", async (request, context, { supabase }) => {
   try {
-    const { id } = await context.params;
+    const { id } = context.params;
 
     const { error } = await supabase
       .from("users")

@@ -1,29 +1,47 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import type { Database } from "@/shared/database/generated.types";
 
 /**
- * Создает server-side Supabase client с типизацией
+ * Создает server-side Supabase client с cookies для auth
+ * Использует anon key вместо service role для корректной работы RLS
  */
-export function createServerSupabaseClient() {
+export async function createServerSupabaseClient() {
+  const cookieStore = await cookies();
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
-      "Missing Supabase environment variables. Please check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+      "Missing Supabase environment variables. Please check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY"
     );
   }
 
-  return createClient<Database>(supabaseUrl, supabaseKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+  return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: CookieOptions) {
+        try {
+          cookieStore.set({ name, value, ...options });
+        } catch (error) {
+          // Server Component - ignore
+        }
+      },
+      remove(name: string, options: CookieOptions) {
+        try {
+          cookieStore.set({ name, value: '', ...options });
+        } catch (error) {
+          // Server Component - ignore
+        }
+      },
     },
   });
 }
 
 /**
- * Type helper для users table
+ * Type helpers для users table
  */
 export type DbUser = Database["public"]["Tables"]["users"]["Row"];
 export type DbUserInsert = Database["public"]["Tables"]["users"]["Insert"];

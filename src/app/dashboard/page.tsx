@@ -11,7 +11,6 @@ export default function DashboardPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
-  // Исправление hydration - ждем монтирования на клиенте
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -27,7 +26,6 @@ export default function DashboardPage() {
     router.push("/");
   };
 
-  // Не рендерим ничего пока не смонтировано (избегаем hydration mismatch)
   if (!mounted) {
     return null;
   }
@@ -46,6 +44,21 @@ export default function DashboardPage() {
   if (error || !user) {
     return null;
   }
+
+  // Defensive programming: добавляем fallback значения для stats
+  const stats = user.stats || {
+    level: 1,
+    experience: 0,
+    totalWorksRead: 0,
+    totalChaptersRead: 0,
+    totalCards: 0,
+    uniqueCards: 0,
+    rareCards: 0,
+    achievementsUnlocked: 0,
+    totalReadingTime: 0,
+    tradesCompleted: 0,
+    auctionsWon: 0,
+  };
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -108,19 +121,19 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm">Level</p>
-                  <p className="text-3xl font-bold">{user.stats.level}</p>
+                  <p className="text-3xl font-bold">{stats.level}</p>
                 </div>
-                <div className="text-4xl">Level</div>
+                <div className="text-4xl">LVL</div>
               </div>
               <div className="mt-2">
                 <div className="bg-blue-400/30 rounded-full h-2">
                   <div 
                     className="bg-white rounded-full h-2 transition-all"
-                    style={{ width: `${(user.stats.experience % 100)}%` }}
+                    style={{ width: `${(stats.experience % 100)}%` }}
                   />
                 </div>
                 <p className="text-xs text-blue-100 mt-1">
-                  {user.stats.experience} XP
+                  {stats.experience} XP
                 </p>
               </div>
             </div>
@@ -129,12 +142,12 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm">Works Read</p>
-                  <p className="text-3xl font-bold">{user.stats.totalWorksRead}</p>
+                  <p className="text-3xl font-bold">{stats.totalWorksRead}</p>
                 </div>
-                <div className="text-4xl">Books</div>
+                <div className="text-4xl">BOOKS</div>
               </div>
               <p className="text-xs text-purple-100 mt-2">
-                {user.stats.totalChaptersRead} chapters
+                {stats.totalChaptersRead} chapters
               </p>
             </div>
 
@@ -142,12 +155,12 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-pink-100 text-sm">Cards</p>
-                  <p className="text-3xl font-bold">{user.stats.totalCards}</p>
+                  <p className="text-3xl font-bold">{stats.totalCards}</p>
                 </div>
-                <div className="text-4xl">Cards</div>
+                <div className="text-4xl">CARDS</div>
               </div>
               <p className="text-xs text-pink-100 mt-2">
-                {user.stats.uniqueCards} unique, {user.stats.rareCards} rare
+                {stats.uniqueCards} unique, {stats.rareCards} rare
               </p>
             </div>
 
@@ -155,9 +168,9 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-amber-100 text-sm">Achievements</p>
-                  <p className="text-3xl font-bold">{user.stats.achievementsUnlocked}</p>
+                  <p className="text-3xl font-bold">{stats.achievementsUnlocked}</p>
                 </div>
-                <div className="text-4xl">Trophy</div>
+                <div className="text-4xl">TROPHY</div>
               </div>
               <p className="text-xs text-amber-100 mt-2">
                 Keep collecting!
@@ -173,19 +186,19 @@ export default function DashboardPage() {
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <p className="text-gray-600 text-sm mb-2">Total Reading Time</p>
               <p className="text-2xl font-bold text-gray-900">
-                {Math.round(user.stats.totalReadingTime / 60)}h
+                {Math.round(stats.totalReadingTime / 60)}h
               </p>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <p className="text-gray-600 text-sm mb-2">Trades Completed</p>
               <p className="text-2xl font-bold text-gray-900">
-                {user.stats.tradesCompleted}
+                {stats.tradesCompleted}
               </p>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <p className="text-gray-600 text-sm mb-2">Auctions Won</p>
               <p className="text-2xl font-bold text-gray-900">
-                {user.stats.auctionsWon}
+                {stats.auctionsWon}
               </p>
             </div>
           </div>

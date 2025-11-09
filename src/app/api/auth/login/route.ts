@@ -11,21 +11,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const input = LoginInputSchema.parse(body);
 
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const userRepo = new SupabaseUserRepository(supabase);
     const userService = new UserService(userRepo, eventBus);
 
     const result = await userService.login(input);
 
-    const response: ApiResponse<typeof result> = {
+    const response = NextResponse.json({
       data: result,
       metadata: {
         timestamp: new Date(),
         requestId: crypto.randomUUID(),
       },
-    };
+    });
 
-    return NextResponse.json(response);
+    // Устанавливаем httpOnly cookie с JWT
+    response.cookies.set("token", result.token, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7, // 7 дней
+    });
+
+    return response;
   } catch (error) {
     return handleApiError(error);
   }

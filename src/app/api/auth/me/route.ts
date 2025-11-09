@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/with-auth";
 
+/**
+ * GET /api/auth/me — всегда возвращает { user: ... } или { user: null }
+ */
 export const GET = withAuth(async (request, context, { user, supabase }) => {
   try {
     const { data: profile, error } = await supabase
@@ -10,7 +13,8 @@ export const GET = withAuth(async (request, context, { user, supabase }) => {
       .single();
 
     if (error || !profile) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      // Возвращаем пустой объект, а не undefined
+      return NextResponse.json({ user: null }, { status: 404 });
     }
 
     return NextResponse.json({ 
@@ -26,7 +30,7 @@ export const GET = withAuth(async (request, context, { user, supabase }) => {
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: "Internal server error", message: error.message },
+      { user: null, error: "Internal server error", message: error.message },
       { status: 500 }
     );
   }

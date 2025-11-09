@@ -59,16 +59,16 @@ export function useUpdateProfile(id: string) {
 
 /**
  * Hook для получения текущего авторизованного пользователя
- * Использует защищенный endpoint /api/auth/me
+ * Возвращает null, если не авторизован
  */
 export function useCurrentUser() {
   return useQuery({
     queryKey: ["user", "me"],
-    queryFn: async (): Promise<User> => {
+    queryFn: async (): Promise<User | null> => {
       const token = localStorage.getItem("auth_token");
 
       if (!token) {
-        throw new Error("Not authenticated");
+        return null; // Пользователь не авторизован
       }
 
       const response = await fetch("/api/auth/me", {
@@ -79,11 +79,11 @@ export function useCurrentUser() {
 
       const data: ApiResponse<User> = await response.json();
 
-      if (!response.ok || data.error) {
-        throw new Error(data.error?.message || "Failed to fetch current user");
+      if (!response.ok || data.error || !data.user) {
+        return null; // Нет объекта user
       }
 
-      return data.data!;
+      return data.user;
     },
     retry: false, // Не повторять при 401
   });
